@@ -1,0 +1,85 @@
+# Serica Configuration File
+#
+# Every value here has an environment-variable equivalent
+# (SERICA_<SECTION>__<KEY>); see .env.example for the same settings in that
+# shape, and docs/CONFIG.md for the full reference with valid ranges.
+#
+# Env vars win over this file, which wins over the built-in defaults. Every
+# value below is already the default, so this file is a starting point to
+# edit, not a file Serica needs in order to run.
+
+[server]
+host = "127.0.0.1"
+port = 3000
+log_level = "info"
+log_format = "json"
+shutdown_drain_timeout_seconds = 10
+rate_limit_per_minute = 30
+# Unset by default: /api/v1/stats stays open.
+# Set this to require a matching `Authorization: Bearer <key>` or
+# `X-API-Key: <key>` header on requests to /api/v1/stats — total_searches
+# and avg_latency_ms are enough to infer another deployment's traffic
+# volume over time, so this is worth gating once the endpoint is reachable
+# from anywhere untrusted.
+# api_key = "change-me"
+# Caps how many /api/v1/extract + serica_extract requests may run their
+# fetch+parse span concurrently (1..=16).
+max_concurrent_extracts = 2
+
+[search]
+default_timeout_ms = 4000
+max_results_per_page = 20
+safe_search_default = 1
+
+[cache]
+# Caching requires a binary built with the non-default `redis-cache` Cargo
+# feature. Without it, setting redis_url is a startup error rather than a
+# silent no-op — see docs/CONFIG.md, "Redis caching is a build-time feature".
+ttl_seconds = 300
+# TTL for cached /api/v1/extract and serica_extract responses — separate
+# from ttl_seconds above, since docs/article pages change far less often
+# than search rankings do.
+extract_ttl_seconds = 3600
+# redis_url = "redis://localhost:6379"
+# Redis's memory cap is a server-side/deployment concern, not a client
+# setting — see docker-compose.yml's `redis-server --maxmemory ...`
+# command. A client-side value here would never apply to anything, and
+# duplicating a shared server's memory policy on the client would only
+# drift.
+
+[mcp]
+enabled = true
+
+[cors]
+# Unset by default: no CORS layer is attached, and none is needed for
+# server-to-server or MCP stdio callers. Only set this if Serica is called
+# directly from browser JavaScript on another origin.
+# origin = "https://example.com"
+
+[extract]
+# Caps the size of the EXTRACTED/returned content from /api/v1/extract and
+# serica_extract — independent of the raw-fetch byte cap below.
+# max_content_chars becomes rs_trafilatura's Options::max_extracted_len, so
+# a very long article is capped rather than returned as a
+# near-1,000,000-character JSON body.
+max_content_chars = 50000
+# "text" or "markdown". "markdown" populates the response's `content` field
+# with GitHub-Flavored Markdown (headings, lists, links, code blocks), which
+# most LLM/MCP tool-use clients parse more reliably than flattened text.
+output_format = "markdown"
+# Caps the raw HTML byte count read_capped_body buffers before extraction
+# runs (64KB..=16MB) — a memory/DoS ceiling, not a parse-correctness limit;
+# large real pages are cheap to parse regardless of raw byte count since
+# script/style/noscript content is stripped before extraction runs.
+max_raw_bytes = 4194304
+# Wall-clock budget (ms) for the full extract span, fetch through parse.
+timeout_ms = 30000
+
+[proxy]
+# Unset by default: no outbound proxy, either key. Search and extract are
+# separate keys on purpose: search is safe to proxy freely, but extract
+# fetches caller-supplied URLs, and proxying it disables the SSRF
+# DNS-rebinding IP-pinning guarantee in util::ssrf — read
+# docs/PROXY.md, "Outbound proxy support", before setting extract_url.
+# search_url = "http://user:pass@proxy.example.com:8080"
+# extract_url = "http://user:pass@proxy.example.com:8080"

@@ -1,0 +1,22 @@
+target/
+.env
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+*.iml
+research/
+
+# docs/: only CONFIG.md and PROXY.md ship. Anything else under docs/ is
+# local-only working material and must never be committed.
+docs/*
+!docs/CONFIG.md
+!docs/PROXY.md
+
+# Belt-and-braces: never track an audit file, anywhere.
+AUDIT.md
+
+# Local AI-assistant state. Explicitly ignored so a clean tree doesn't depend
+# on machine-local global gitignore config.
+.claude/

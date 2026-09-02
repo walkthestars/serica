@@ -1,0 +1,26 @@
+# Build artifacts and VCS metadata — never needed inside the build context.
+# `target/` alone is the big one (many GB locally); without this file the
+# whole thing is tarred up and shipped to the daemon on every `docker build`.
+target/
+.git/
+.github/
+
+# Docs, non-build metadata, and editor/agent tooling.
+docs/
+research/
+*.md
+LICENSE
+deny.toml
+.claude/
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+.DS_Store
+
+# Local env/config — never baked into the image; config comes from
+# environment variables (see docker-compose.yml) or mounted files at runtime.
+.env
+.env.*
+serica.toml

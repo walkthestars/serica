@@ -1,0 +1,50 @@
+<!-- Hand-built fixture matching DDG HTML's result markup (div.result__body /
+     a.result__a / a.result__snippet — see src/engines/duckduckgo.rs's
+     CONTAINER_SEL/TITLE_SEL/SNIPPET_SEL), standing in for the *second* page
+     of results for the query "rust". Deliberately contains a disjoint set of
+     result URLs from tests/fixtures/ddg_rust_search.html (page 1) so a test
+     can prove `page=2` actually returns different results instead of the
+     empty set GEN-1's double-pagination bug produced, or the same page
+     repeated. -->
+<!DOCTYPE html>
+<html>
+<body class="body--html">
+  <div>
+    <div class="serp__results">
+      <div id="links" class="results">
+
+        <div class="result results_links results_links_deep web-result ">
+          <div class="links_main links_deep result__body">
+            <h2 class="result__title">
+              <a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fcrates.io%2F&rut=page2a">crates.io: Rust Package Registry</a>
+            </h2>
+            <a class="result__snippet" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fcrates.io%2F&rut=page2a">crates.io is the Rust community's crate registry.</a>
+            <div class="clear"></div>
+          </div>
+        </div>
+
+        <div class="result results_links results_links_deep web-result ">
+          <div class="links_main links_deep result__body">
+            <h2 class="result__title">
+              <a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fusers.rust-lang.org%2F&rut=page2b">Rust Users Forum</a>
+            </h2>
+            <a class="result__snippet" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fusers.rust-lang.org%2F&rut=page2b">A place for the Rust community to discuss and ask for help.</a>
+            <div class="clear"></div>
+          </div>
+        </div>
+
+        <div class="result results_links results_links_deep web-result ">
+          <div class="links_main links_deep result__body">
+            <h2 class="result__title">
+              <a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fdocs.rs%2F&rut=page2c">Docs.rs</a>
+            </h2>
+            <a class="result__snippet" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fdocs.rs%2F&rut=page2c">Docs.rs is the canonical home for Rust crate documentation.</a>
+            <div class="clear"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</body>
+</html>

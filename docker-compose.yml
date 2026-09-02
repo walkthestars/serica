@@ -1,0 +1,48 @@
+services:
+  serica:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - SERICA_SERVER__HOST=0.0.0.0
+      - SERICA_SERVER__PORT=3000
+      - SERICA_SERVER__LOG_LEVEL=info
+      - SERICA_SERVER__RATE_LIMIT_PER_MINUTE=30
+      - SERICA_CACHE__REDIS_URL=redis://redis:6379/0
+      # Rotating search proxy, passed through from the host environment
+      # (.env, gitignored — never commit credentials). Unset means the
+      # container searches DuckDuckGo directly from the host IP, which
+      # anti-bot rate-limiting punishes quickly under any real load.
+      - SERICA_PROXY__SEARCH_URL=${SERICA_PROXY__SEARCH_URL:-}
+      # CORS is unnecessary here: this container is reached by servers/MCP
+      # clients, not browsers, and shipping "*" by default would let any
+      # website a user visits drive this instance. Uncomment and set a real
+      # origin only if a browser-based frontend calls this API directly.
+      # - SERICA_CORS__ORIGIN=https://example.com
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    # Hardening. No tmpfs mount is needed under read_only: true —
+    # Serica writes nothing to disk at runtime (config/env are read-only
+    # inputs, logging goes to stdout); add one here if that ever changes.
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+    pids_limit: 128
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis_data:

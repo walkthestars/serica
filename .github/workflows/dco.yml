@@ -1,0 +1,119 @@
+name: DCO
+
+on:
+  pull_request:
+    branches: [master]
+  # Also gate direct pushes. The pull_request trigger alone leaves a hole the
+  # size of `git push origin master`: several commits reached master unsigned
+  # that way, in a repo whose CONTRIBUTING.md tells contributors CI enforces
+  # sign-off on every commit. A DCO that only applies to other people is not a
+  # DCO.
+  push:
+    branches: [master]
+
+# Serica takes contributions under a Developer Certificate of Origin sign-off
+# rather than a CLA (see COPYRIGHT). That only means anything if it's actually
+# enforced, so this checks every commit in the PR (or direct push) rather than
+# trusting the
+# checkbox in the PR template. Deliberately implemented as a plain shell script
+# instead of a third-party action: it's ~20 lines of git plumbing, and a DCO
+# gate is a poor place to introduce a supply-chain dependency.
+jobs:
+  check:
+    name: Check sign-off
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need both PR head and base to enumerate the commit range; the
+          # default shallow clone has neither.
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Verify Signed-off-by on every commit
+        env:
+          # On a pull_request these bracket the PR's own commits. On a push,
+          # `github.event.before` is the previous tip of the branch, so the
+          # same range expression covers exactly the commits being pushed.
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          failed=0
+
+          # A branch's first push reports an all-zero `before`, and a
+          # force-push can name a commit that doesn't exist. Neither is a
+          # usable range start; check just the tip commit in that case.
+          if [ -z "$BASE_SHA" ] \
+             || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            echo "No usable base commit ($BASE_SHA); checking $HEAD_SHA alone."
+            RANGE="$HEAD_SHA -n 1"
+          else
+            RANGE="$BASE_SHA..$HEAD_SHA"
+          fi
+
+          for sha in $(git rev-list --reverse $RANGE); do
+            # Merge commits carry no authored content of their own.
+            if [ "$(git rev-list --no-walk --count --merges "$sha")" -eq 1 ]; then
+              continue
+            fi
+
+            author="$(git show -s --format='%an <%ae>' "$sha")"
+            subject="$(git show -s --format='%s' "$sha")"
+
+            # Trailer parsing rather than a grep over the whole message, so a
+            # sign-off quoted in the body doesn't count. Matched with a
+            # here-string, not a pipe: `grep -q` exits on first match, which
+            # SIGPIPEs `git show` (141) and — under `pipefail` — would fail
+            # every commit, including correctly signed ones.
+            trailers="$(git show -s --format='%(trailers:key=Signed-off-by,valueonly)' "$sha")"
+
+            # Compared in bash rather than shelling out to grep: `grep -q` exits
+            # on first match, which SIGPIPEs `git show` (141) and — under
+            # `pipefail` — fails every commit including correctly signed ones.
+            # Feeding grep a here-string instead trades that for an abort on
+            # some grep builds. A read loop has neither failure mode.
+            # Case-insensitive, as sign-off matching conventionally is, but
+            # whole-value: a trailer must equal the author, not contain it.
+            matched=0
+            while IFS= read -r trailer; do
+              trailer="${trailer#"${trailer%%[![:space:]]*}"}"
+              trailer="${trailer%"${trailer##*[![:space:]]}"}"
+              [ -n "$trailer" ] || continue
+              if [ "${trailer,,}" = "${author,,}" ]; then
+                matched=1
+                break
+              fi
+            done <<<"$trailers"
+
+            if [ "$matched" -eq 1 ]; then
+              echo "ok    ${sha:0:8}  $subject"
+            else
+              echo "FAIL  ${sha:0:8}  $subject"
+              echo "        author:    $author"
+              echo "        sign-offs: ${trailers:-(none)}"
+              failed=1
+            fi
+          done
+
+          if [ "$failed" -ne 0 ]; then
+            cat <<'EOF'
+
+          ---
+          One or more commits are missing a `Signed-off-by` trailer matching
+          their author, or the trailer doesn't match the commit author exactly.
+
+          Fix the most recent commit:
+              git commit --amend -s --no-edit
+
+          Fix every commit on the branch:
+              git rebase --signoff master
+
+          Then force-push. See CONTRIBUTING.md ("Sign your work") and the DCO file.
+          ---
+          EOF
+            exit 1
+          fi
+
+          echo "All commits signed off."

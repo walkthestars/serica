@@ -1,0 +1,69 @@
+name: CLA Assistant
+
+# Enforces the Contributor License Agreement (CLA.md) on pull requests.
+# Runs the DCO check as well? No — DCO has its own workflow (dco.yml);
+# the two are complementary: DCO certifies origin per commit, the CLA
+# grants the Project Owner relicensing rights per contributor.
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened, closed, synchronize]
+
+# Explicit least-privilege block. The repository default workflow permission
+# is read/write (docker.yml needs it for GHCR publishing on tags), so this
+# MUST declare its own permissions rather than inherit — if the default is
+# ever tightened to read-only, the CLA workflow keeps working.
+permissions:
+  actions: write
+  contents: write      # signatures are committed to the cla-signatures branch
+  issues: write        # locking the merged PR conversation (signature evidence)
+  pull-requests: write
+  statuses: write
+
+jobs:
+  CLAAssistant:
+    runs-on: ubuntu-latest
+    steps:
+      - name: CLA Assistant
+        if: (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA') || github.event_name == 'pull_request_target'
+        # IMMUTABLE SHA PIN — do not "upgrade" to a tag or branch ref.
+        # Upstream (contributor-assistant/github-action, SAP's CLA Assistant
+        # Lite) was ARCHIVED 2026-03-23: no releases, no security patches.
+        # A tag ref could be re-pointed; a branch could move; this archived
+        # repo can never ship a commit that changes what this SHA builds.
+        # ca4a40a7d1004f18d9960b404b97e5f30a505a08 == tag v2.6.1 (verified
+        # 2026-09-02 via the GitHub API).
+        uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # v2.6.1 (repo archived)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          path-to-signatures: 'signatures/version1/cla.json'
+          path-to-document: 'https://github.com/walkthestars/serica/blob/master/CLA.md'
+          # The action COMMITS the signatures file to this branch. It must
+          # NOT be `master`: master is branch-protected, and the action
+          # cannot push to a protected branch (documented upstream failure
+          # mode, contributor-assistant/github-action#165). A dedicated,
+          # unprotected branch keeps signatures versioned in-repo and
+          # auditable while leaving master's protection intact.
+          branch: 'cla-signatures'
+          # The Project Owner is exempt (no reason to sign your own CLA),
+          # and bots cannot comment the signature phrase. `bot*` covers
+          # bot-prefixed accounts; dependabot/github-actions are suffixed
+          # `[bot]` and are listed explicitly.
+          allowlist: 'walkthestars,bot*,dependabot[bot],github-actions[bot]'
+          custom-notsigned-prcomment: 'Thanks for this pull request! Before it can be reviewed, first-time contributors need to accept the Serica Contributor License Agreement once (it covers all present and future contributions). Read it here: $pathToCLADocument
+
+Then comment the exact phrase below on this pull request to sign:
+
+`I have read the CLA Document and I hereby sign the CLA`'
+          custom-pr-sign-comment: 'I have read the CLA Document and I hereby sign the CLA'
+          custom-allsigned-prcomment: 'All contributors have signed the CLA. Thank you!'
+          # After merge, lock the conversation so signature comments cannot
+          # be edited or deleted — the signature record stays attributable
+          # to the PR evidence forever.
+          lock-pullrequest-aftermerge: true
+          # One comment either signs or doesn't; a recheck suggestion only
+          # invites noise. (Anyone can still comment `recheck` manually.)
+          suggest-recheck: false

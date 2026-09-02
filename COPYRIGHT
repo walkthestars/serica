@@ -1,0 +1,29 @@
+Serica — a single-binary search engine in Rust.
+
+Copyright (C) 2026 walkthestars <64265241+walkthestars@users.noreply.github.com>
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License, version 3, as published by
+the Free Software Foundation. See the LICENSE file for the full text.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+
+
+Copyright ownership
+-------------------
+
+All code in this repository up to and including the initial public release is
+the sole copyright of the author named above.
+
+Serica does not use a Contributor License Agreement. Contributors retain
+copyright in their own contributions and license them to the project — and to
+everyone else — under AGPL-3.0-only, certified by a Developer Certificate of
+Origin sign-off on each commit. See the DCO file and CONTRIBUTING.md.
+
+A practical consequence, recorded here deliberately: because contributors keep
+their copyright, no single party can unilaterally relicense this project once
+third-party contributions have been merged. Any future relicensing would
+require the agreement of every contributor whose work remains in the tree.
+`git log` is the authoritative record of who those people are.

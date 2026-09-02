@@ -1,0 +1,63 @@
+# cargo-deny configuration
+# Run: cargo deny check
+#
+# Targets the cargo-deny 0.14+ config schema (this repo uses
+# cargo-deny 0.20.2). Keys removed in 0.14 (`[advisories] vulnerability`,
+# `[licenses] copyleft`/`default`) and a `[[licenses.exceptions]]` entry
+# missing the now-required `allow` list make a current `cargo-deny` error
+# out before any real check runs, so neither appears here.
+
+[advisories]
+db-urls = ["https://github.com/rustsec/advisory-db"]
+yanked = "deny"
+# `unmaintained` is not a severity switch under the 0.14+ schema (all
+# unmaintained advisories are hard errors by default) — it only selects
+# *which part* of the dependency graph gets checked for unmaintained status:
+# all/workspace/transitive/none. "workspace" (only our own direct
+# `[dependencies]`/`[dev-dependencies]`, not everything they pull in) is
+# deliberate: transitive deps this project doesn't choose directly are
+# common and often can't be swapped out unilaterally, and "all" would turn
+# every transitive unmaintained crate into a hard CI failure this project
+# has no direct lever to fix.
+unmaintained = "workspace"
+unsound = "workspace"
+
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    "MPL-2.0",
+    # This crate's own license (`license = "AGPL-3.0-only"` in Cargo.toml,
+    # matching the repo-root `LICENSE` file) must be allow-listed, or a
+    # correctly-configured `cargo-deny` flags Serica's own source as a
+    # licensing violation on every run.
+    "AGPL-3.0-only",
+    # `webpki-root-certs`, pulled in transitively via reqwest ->
+    # rustls-platform-verifier, is licensed
+    # under CDLA-Permissive-2.0 (Community Data License Agreement,
+    # Permissive), a permissive data license in the same family as the
+    # other permissive entries already on this list.
+    "CDLA-Permissive-2.0",
+]
+
+# No `[[licenses.exceptions]]` entries: an exception's `name` must be an
+# actual crate name (a per-crate override) with an explicit `allow` list,
+# and no dependency in Cargo.lock needs one. "Unicode-3.0", for example, is
+# a license identifier rather than a crate, and it's already covered by the
+# top-level `allow` list above.
+
+[bans]
+multiple-versions = "warn"
+deny = []
+skip = []
+skip-tree = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-git = []

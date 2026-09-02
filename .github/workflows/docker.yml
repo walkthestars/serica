@@ -1,0 +1,73 @@
+name: Docker
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    name: Build and Push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        # Hosted GitHub runners are amd64-only, so building the
+        # linux/arm64 image below runs under emulation. Required for
+        # cross-platform `RUN` steps (the cargo build itself) to work at
+        # all on an arm64 target platform; setup-buildx-action alone only
+        # gets you the *manifest-list*/multi-platform build machinery, not
+        # the ability to actually execute non-native instructions.
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        # Required for the GitHub Actions cache backend below (cache-from/
+        # cache-to: type=gha) — the default "docker" buildx driver that
+        # ships on hosted runners can't export/import cache to an external
+        # backend, only the "docker-container" driver this step creates can
+        # This is what lets the cargo-chef dependency layer (and,
+        # within a run, the cargo registry/target cache mounts) survive
+        # across otherwise-stateless CI runners instead of starting cold on
+        # every push.
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # rust-toolchain.toml declares aarch64-unknown-linux-musl as a
+          # target, so the same toolchain file drives the arm64 build. The
+          # Dockerfile's builder stage branches on $TARGETARCH (set by
+          # buildx per platform below) instead of hardcoding
+          # x86_64-unknown-linux-musl, so this produces a working
+          # arm64 image rather than an arm64-tagged manifest around an
+          # x86_64 binary.
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
