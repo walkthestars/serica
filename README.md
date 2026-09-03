@@ -156,23 +156,15 @@ The published Docker image is built with `--features redis-cache`, so it needs n
 
 ## Docker
 
-> **No image is published yet.** The workflow that builds and pushes to GHCR
-> triggers on `v*` tags, and no release has been tagged, so
-> `ghcr.io/walkthestars/serica` does not resolve today. Build locally until the
-> first tagged release:
+Published images cover `linux/amd64` and `linux/arm64` and are built with the
+`redis-cache` feature, so they need no rebuild to use Redis:
 
 ```bash
-docker build -t serica .
-docker run -p 3000:3000 serica
+docker run -p 3000:3000 ghcr.io/walkthestars/serica            # latest
+docker run -p 3000:3000 ghcr.io/walkthestars/serica:v0.2.0     # pinned
 ```
 
-Once a release is tagged, the published images cover `linux/amd64` and `linux/arm64` and are built with the `redis-cache` feature, so they need no rebuild to use Redis:
-
-```bash
-docker run -p 3000:3000 ghcr.io/walkthestars/serica
-```
-
-A `docker-compose.yml` wiring Serica to a Redis container is included in the repo, and works today — it builds from source rather than pulling an image.
+A `docker-compose.yml` wiring Serica to a Redis container is also included.
 
 ## Development
 
