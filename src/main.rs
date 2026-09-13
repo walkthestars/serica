@@ -118,21 +118,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    // Build cache layer: Redis if configured + feature enabled, otherwise Noop
+    // Build cache layer: Redis if configured + feature enabled, otherwise Noop.
+    // The Redis handle is lazy (connects on first use, with timeout + retry),
+    // so a dead Redis can never stall startup or the MCP stdio handshake —
+    // the server comes up serving uncached and heals when Redis returns.
     let cache: Arc<dyn CacheLayer> = {
         let redis_url = config.cache.redis_url.as_deref().unwrap_or("");
         if !redis_url.is_empty() {
             #[cfg(feature = "redis-cache")]
             {
-                match serica_search::cache::redis::RedisCache::new(
+                match serica_search::cache::redis::LazyRedisCache::new(
                     redis_url,
                     Duration::from_secs(config.cache.ttl_seconds),
-                )
-                .await
-                {
-                    Ok(redis_cache) => {
-                        tracing::info!("Redis cache enabled at {}", redis_url);
-                        Arc::new(redis_cache)
+                ) {
+                    Ok(lazy_cache) => {
+                        tracing::info!(
+                            "Redis cache configured at {} (lazy connect, serving uncached until reachable)",
+                            redis_url
+                        );
+                        Arc::new(lazy_cache)
                     }
                     Err(e) => {
                         tracing::warn!(error = %e, "Redis unavailable, falling back to noop cache");
