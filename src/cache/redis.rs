@@ -130,10 +130,7 @@ impl LazyRedisCache {
     /// Parse the Redis URL. Performs no I/O — safe to call at startup.
     /// Returns Err only if the URL itself is invalid (caller falls back
     /// to NoopCache, same as before).
-    pub fn new(
-        redis_url: &str,
-        default_ttl: Duration,
-    ) -> Result<Self, crate::error::AppError> {
+    pub fn new(redis_url: &str, default_ttl: Duration) -> Result<Self, crate::error::AppError> {
         let client = redis::Client::open(redis_url).map_err(|e| {
             crate::error::AppError::Redis(format!("Failed to create Redis client: {}", e))
         })?;
